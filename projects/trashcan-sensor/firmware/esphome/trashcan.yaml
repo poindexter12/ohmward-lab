@@ -1,0 +1,168 @@
+esphome:
+  name: trashcan-sensor
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  ap:
+    ssid: "trashcan-sensor-fallback"
+    password: !secret fallback_password
+
+captive_portal:
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  platform: esphome
+  password: !secret ota_password
+
+# Substitutions for easy calibration
+substitutions:
+  empty_distance: "0.70"  # meters when can is empty
+  full_distance: "0.10"   # meters when can is considered full
+
+sensor:
+  # Raw distance sensors (meters)
+  # Note: Both sensors share TRIG (GPIO5) - they fire simultaneously
+  # If you get crosstalk, consider separate TRIG pins (e.g., GPIO5 and GPIO17)
+  - platform: ultrasonic
+    trigger_pin: GPIO5
+    echo_pin: GPIO18
+    name: "Trash Distance 1"
+    id: trash_distance_1
+    update_interval: 2s
+    timeout: 2m
+    pulse_time: 10us
+    filters:
+      - median:
+          window_size: 5
+          send_every: 1
+          send_first_at: 1
+
+  - platform: ultrasonic
+    trigger_pin: GPIO5
+    echo_pin: GPIO19
+    name: "Trash Distance 2"
+    id: trash_distance_2
+    update_interval: 2s
+    timeout: 2m
+    pulse_time: 10us
+    filters:
+      - median:
+          window_size: 5
+          send_every: 1
+          send_first_at: 1
+
+  # Fullness percentage for sensor 1
+  - platform: template
+    name: "Trash Fullness 1"
+    id: trash_fullness_1
+    unit_of_measurement: "%"
+    icon: "mdi:trash-can"
+    accuracy_decimals: 0
+    update_interval: 2s
+    lambda: |-
+      const float EMPTY = ${empty_distance};
+      const float FULL  = ${full_distance};
+
+      if (isnan(id(trash_distance_1).state)) {
+        return NAN;
+      }
+
+      float d = id(trash_distance_1).state;
+      if (d > EMPTY) d = EMPTY;
+      if (d < FULL)  d = FULL;
+
+      float pct = (EMPTY - d) / (EMPTY - FULL) * 100.0;
+      return clamp(pct, 0.0f, 100.0f);
+
+  # Fullness percentage for sensor 2
+  - platform: template
+    name: "Trash Fullness 2"
+    id: trash_fullness_2
+    unit_of_measurement: "%"
+    icon: "mdi:trash-can"
+    accuracy_decimals: 0
+    update_interval: 2s
+    lambda: |-
+      const float EMPTY = ${empty_distance};
+      const float FULL  = ${full_distance};
+
+      if (isnan(id(trash_distance_2).state)) {
+        return NAN;
+      }
+
+      float d = id(trash_distance_2).state;
+      if (d > EMPTY) d = EMPTY;
+      if (d < FULL)  d = FULL;
+
+      float pct = (EMPTY - d) / (EMPTY - FULL) * 100.0;
+      return clamp(pct, 0.0f, 100.0f);
+
+  # Combined max fullness (use the "worst" side)
+  - platform: template
+    name: "Trash Fullness Max"
+    id: trash_fullness_max
+    unit_of_measurement: "%"
+    icon: "mdi:trash-can-outline"
+    accuracy_decimals: 0
+    update_interval: 2s
+    lambda: |-
+      float pct1 = id(trash_fullness_1).state;
+      float pct2 = id(trash_fullness_2).state;
+
+      if (isnan(pct1) && isnan(pct2)) {
+        return NAN;
+      }
+      if (isnan(pct1)) return pct2;
+      if (isnan(pct2)) return pct1;
+
+      return max(pct1, pct2);
+
+  # WiFi signal strength for debugging
+  - platform: wifi_signal
+    name: "Trashcan WiFi Signal"
+    update_interval: 60s
+
+  # Uptime for debugging
+  - platform: uptime
+    name: "Trashcan Uptime"
+
+text_sensor:
+  - platform: template
+    name: "Trash Fullness State"
+    id: trash_fullness_state
+    update_interval: 2s
+    lambda: |-
+      if (isnan(id(trash_fullness_max).state)) {
+        return {"unknown"};
+      }
+      float p = id(trash_fullness_max).state;
+      if (p < 20) {
+        return {"empty"};
+      } else if (p < 50) {
+        return {"low"};
+      } else if (p < 80) {
+        return {"half"};
+      } else {
+        return {"full"};
+      }
+
+  # ESPHome version for debugging
+  - platform: version
+    name: "Trashcan ESPHome Version"
+
+binary_sensor:
+  # Expose connection status to HA
+  - platform: status
+    name: "Trashcan Status"

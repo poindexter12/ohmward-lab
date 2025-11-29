@@ -1,3 +1,25 @@
+# OS crap
 .DS_Store
+Thumbs.db
 
+# Python
+__pycache__/
+*.pyc
+
+# Node / tooling (if used later)
+node_modules/
+
+# CAD / render artifacts
+*.backup
+*.bak
+
+# ESPHome build outputs
+/.esphome/
+*.log
+
+# Secrets
+secrets.yaml
+**/secrets.yaml
+
+# Claude local settings
 .claude/settings.local.json
