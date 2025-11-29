@@ -1,70 +1,119 @@
 # Wiring Diagram (Mermaid Source)
 
-See `docs/wiring-diagram.md` for the rendered version.
+See `docs/wiring-diagram.md` for the full documentation with tables.
+
+## System Overview
+
+```mermaid
+flowchart TB
+    subgraph POWER["⚡ Power Supply"]
+        PSU["5V 2A Wall Adapter"]
+    end
+
+    subgraph MCU["🔲 ESP32 Dev Board"]
+        direction LR
+        ESP_5V["5V/VIN"]
+        ESP_3V3["3.3V"]
+        ESP_GND["GND"]
+        ESP_GPIO5["GPIO5"]
+        ESP_GPIO18["GPIO18"]
+        ESP_GPIO19["GPIO19"]
+    end
+
+    subgraph SHIFTER["⚡→ Level Shifter"]
+        direction LR
+        HV["HV (5V side)"]
+        LV["LV (3.3V side)"]
+    end
+
+    subgraph SENSORS["📡 Ultrasonic Sensors"]
+        direction LR
+        SR04_1["HC-SR04 #1"]
+        SR04_2["HC-SR04 #2"]
+    end
+
+    %% Power distribution (5V)
+    PSU -->|"5V"| ESP_5V
+    ESP_5V -->|"5V"| HV
+    ESP_5V -->|"5V VCC"| SR04_1
+    ESP_5V -->|"5V VCC"| SR04_2
+
+    %% 3.3V reference
+    ESP_3V3 -->|"3.3V"| LV
+
+    %% Ground (common)
+    ESP_GND ===|"GND"| SHIFTER
+    ESP_GND ===|"GND"| SR04_1
+    ESP_GND ===|"GND"| SR04_2
+
+    %% Signal: TRIG (3.3V direct - ESP32 output is fine for HC-SR04)
+    ESP_GPIO5 -->|"TRIG"| SR04_1
+    ESP_GPIO5 -->|"TRIG"| SR04_2
+
+    %% Signal: ECHO (5V→3.3V via shifter)
+    SR04_1 -->|"ECHO 5V"| HV
+    SR04_2 -->|"ECHO 5V"| HV
+    LV -->|"ECHO 3.3V"| ESP_GPIO18
+    LV -->|"ECHO 3.3V"| ESP_GPIO19
+```
+
+## Detailed Pin-to-Pin
 
 ```mermaid
 flowchart LR
-    subgraph PWR["5V Wall Adapter + Connector"]
-        WA["+5V (adapter)"]
-        WG["GND (adapter)"]
-        CONN["+ 2-pin plug -"]
+    subgraph ESP["ESP32"]
+        E_5V["5V"]
+        E_3V3["3.3V"]
+        E_GND["GND"]
+        E_G5["GPIO5"]
+        E_G18["GPIO18"]
+        E_G19["GPIO19"]
     end
 
-    subgraph ESP["ELEGOO ESP32 Dev Board"]
-        V5["5V / VIN"]
-        EGND["GND"]
-        V33["3.3V"]
-        GPIO5["GPIO5 (TRIG)"]
-        GPIO18["GPIO18 (ECHO1 in)"]
-        GPIO19["GPIO19 (ECHO2 in)"]
+    subgraph LVL["Level Shifter"]
+        L_HV["HV"]
+        L_LV["LV"]
+        L_GND["GND"]
+        L_HV1["HV1"]
+        L_LV1["LV1"]
+        L_HV2["HV2"]
+        L_LV2["LV2"]
     end
 
-    subgraph LVL["KeeYees 4-Channel Level Shifter"]
-        LV["LV (3.3V)"]
-        HV["HV (5V)"]
-        LGND["GND"]
-        LV1["LV1 → GPIO18"]
-        HV1["HV1 ← ECHO1"]
-        LV2["LV2 → GPIO19"]
-        HV2["HV2 ← ECHO2"]
+    subgraph S1["Sensor 1"]
+        S1_VCC["VCC"]
+        S1_GND["GND"]
+        S1_TRIG["TRIG"]
+        S1_ECHO["ECHO"]
     end
 
-    subgraph S1["HC-SR04 #1"]
-        S1V["VCC"]
-        S1G["GND"]
-        S1T["TRIG"]
-        S1E["ECHO"]
+    subgraph S2["Sensor 2"]
+        S2_VCC["VCC"]
+        S2_GND["GND"]
+        S2_TRIG["TRIG"]
+        S2_ECHO["ECHO"]
     end
 
-    subgraph S2["HC-SR04 #2"]
-        S2V["VCC"]
-        S2G["GND"]
-        S2T["TRIG"]
-        S2E["ECHO"]
-    end
+    %% 5V Power
+    E_5V --- L_HV
+    E_5V --- S1_VCC
+    E_5V --- S2_VCC
 
-    WA --> CONN
-    WG --> CONN
+    %% 3.3V Reference
+    E_3V3 --- L_LV
 
-    CONN --> V5
-    CONN --> EGND
+    %% Ground
+    E_GND --- L_GND
+    E_GND --- S1_GND
+    E_GND --- S2_GND
 
-    V5 --> HV
-    V5 --> S1V
-    V5 --> S2V
+    %% TRIG signals
+    E_G5 --- S1_TRIG
+    E_G5 --- S2_TRIG
 
-    V33 --> LV
-
-    EGND --> LGND
-    EGND --> S1G
-    EGND --> S2G
-
-    GPIO5 --> S1T
-    GPIO5 --> S2T
-
-    S1E --> HV1
-    LV1 --> GPIO18
-
-    S2E --> HV2
-    LV2 --> GPIO19
+    %% ECHO through shifter
+    S1_ECHO --- L_HV1
+    L_LV1 --- E_G18
+    S2_ECHO --- L_HV2
+    L_LV2 --- E_G19
 ```
