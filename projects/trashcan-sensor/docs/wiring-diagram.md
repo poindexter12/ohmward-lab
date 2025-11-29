@@ -1,155 +1,126 @@
 # Wiring Diagram
 
-This wiring assumes:
+## Components
 
-- ESP32: ELEGOO ESP-32 Dev Board (USB-C, CP2102)
-- TRIG shared on GPIO5
-- ECHO1 on GPIO18 (via shifter)
-- ECHO2 on GPIO19 (via shifter)
-- Arkare 5V 2A adapter connected through a 2-pin connector to ESP32 5V and GND
-- KeeYees 4-channel logic level converter used only for the ECHO lines
+- **ESP32:** ELEGOO ESP-32 Dev Board (USB-C, CP2102)
+- **Sensors:** 2x HC-SR04 ultrasonic
+- **Level Shifter:** KeeYees 4-channel (3.3V ↔ 5V)
+- **Power:** Arkare 5V 2A USB-C adapter
 
-## System Overview
+---
 
-```mermaid
-flowchart TB
-    subgraph POWER["⚡ Power Supply"]
-        PSU["5V 2A Wall Adapter"]
-    end
+## System Block Diagram
 
-    subgraph MCU["🔲 ESP32 Dev Board"]
-        direction LR
-        ESP_5V["5V/VIN"]
-        ESP_3V3["3.3V"]
-        ESP_GND["GND"]
-        ESP_GPIO5["GPIO5"]
-        ESP_GPIO18["GPIO18"]
-        ESP_GPIO19["GPIO19"]
-    end
-
-    subgraph SHIFTER["⚡→ Level Shifter"]
-        direction LR
-        HV["HV (5V side)"]
-        LV["LV (3.3V side)"]
-    end
-
-    subgraph SENSORS["📡 Ultrasonic Sensors"]
-        direction LR
-        SR04_1["HC-SR04 #1"]
-        SR04_2["HC-SR04 #2"]
-    end
-
-    %% Power distribution (5V)
-    PSU -->|"5V"| ESP_5V
-    ESP_5V -->|"5V"| HV
-    ESP_5V -->|"5V VCC"| SR04_1
-    ESP_5V -->|"5V VCC"| SR04_2
-
-    %% 3.3V reference
-    ESP_3V3 -->|"3.3V"| LV
-
-    %% Ground (common)
-    ESP_GND ===|"GND"| SHIFTER
-    ESP_GND ===|"GND"| SR04_1
-    ESP_GND ===|"GND"| SR04_2
-
-    %% Signal: TRIG (3.3V direct - ESP32 output is fine for HC-SR04)
-    ESP_GPIO5 -->|"TRIG"| SR04_1
-    ESP_GPIO5 -->|"TRIG"| SR04_2
-
-    %% Signal: ECHO (5V→3.3V via shifter)
-    SR04_1 -->|"ECHO 5V"| HV
-    SR04_2 -->|"ECHO 5V"| HV
-    LV -->|"ECHO 3.3V"| ESP_GPIO18
-    LV -->|"ECHO 3.3V"| ESP_GPIO19
-```
-
-## Detailed Pin-to-Pin Connections
+High-level view of how components connect:
 
 ```mermaid
 flowchart LR
-    subgraph ESP["ESP32"]
-        E_5V["5V"]
-        E_3V3["3.3V"]
-        E_GND["GND"]
-        E_G5["GPIO5"]
-        E_G18["GPIO18"]
-        E_G19["GPIO19"]
-    end
-
-    subgraph LVL["Level Shifter"]
-        L_HV["HV"]
-        L_LV["LV"]
-        L_GND["GND"]
-        L_HV1["HV1"]
-        L_LV1["LV1"]
-        L_HV2["HV2"]
-        L_LV2["LV2"]
-    end
-
-    subgraph S1["Sensor 1"]
-        S1_VCC["VCC"]
-        S1_GND["GND"]
-        S1_TRIG["TRIG"]
-        S1_ECHO["ECHO"]
-    end
-
-    subgraph S2["Sensor 2"]
-        S2_VCC["VCC"]
-        S2_GND["GND"]
-        S2_TRIG["TRIG"]
-        S2_ECHO["ECHO"]
-    end
-
-    %% 5V Power
-    E_5V --- L_HV
-    E_5V --- S1_VCC
-    E_5V --- S2_VCC
-
-    %% 3.3V Reference
-    E_3V3 --- L_LV
-
-    %% Ground
-    E_GND --- L_GND
-    E_GND --- S1_GND
-    E_GND --- S2_GND
-
-    %% TRIG signals
-    E_G5 --- S1_TRIG
-    E_G5 --- S2_TRIG
-
-    %% ECHO through shifter
-    S1_ECHO --- L_HV1
-    L_LV1 --- E_G18
-    S2_ECHO --- L_HV2
-    L_LV2 --- E_G19
+    PSU[🔌 5V Power] --> ESP32
+    ESP32 <--> SHIFT[Level Shifter]
+    SHIFT <--> S1[Sensor 1]
+    SHIFT <--> S2[Sensor 2]
+    ESP32 --> S1
+    ESP32 --> S2
 ```
 
-## Wire Color Suggestion
+---
 
-| Color  | Signal      | From              | To                    |
-|--------|-------------|-------------------|-----------------------|
-| 🔴 Red    | 5V Power    | Adapter +         | ESP32 5V, Sensors VCC, Shifter HV |
-| ⚫ Black  | Ground      | Adapter -         | All GND pins          |
-| 🟡 Yellow | TRIG        | ESP32 GPIO5       | Both HC-SR04 TRIG     |
-| 🟢 Green  | ECHO1 (5V)  | HC-SR04 #1 ECHO   | Shifter HV1           |
-| 🔵 Blue   | ECHO1 (3.3V)| Shifter LV1       | ESP32 GPIO18          |
-| 🟠 Orange | ECHO2 (5V)  | HC-SR04 #2 ECHO   | Shifter HV2           |
-| 🟣 Purple | ECHO2 (3.3V)| Shifter LV2       | ESP32 GPIO19          |
-| ⚪ White  | 3.3V Ref    | ESP32 3.3V        | Shifter LV            |
+## Wiring Table
 
-## Pin Mapping Summary
+This is the actual build reference:
 
-| ESP32 Pin | Direction | Connected To            | Notes                          |
-|-----------|-----------|-------------------------|--------------------------------|
-| 5V/VIN    | IN        | Power adapter 5V        | Powers entire system           |
-| 3.3V      | OUT       | Level shifter LV        | Reference for low side         |
-| GND       | -         | All grounds             | Common ground                  |
-| GPIO5     | OUT       | Both HC-SR04 TRIG       | Shared trigger (fires both)    |
-| GPIO18    | IN        | Level shifter LV1       | ECHO from sensor 1 (shifted)   |
-| GPIO19    | IN        | Level shifter LV2       | ECHO from sensor 2 (shifted)   |
+| Wire | Color | From | To |
+|------|-------|------|-----|
+| 1 | 🔴 Red | Adapter + | ESP32 5V |
+| 2 | ⚫ Black | Adapter − | ESP32 GND |
+| 3 | 🔴 Red | ESP32 5V | Shifter HV |
+| 4 | ⚪ White | ESP32 3.3V | Shifter LV |
+| 5 | ⚫ Black | ESP32 GND | Shifter GND |
+| 6 | 🔴 Red | ESP32 5V | Sensor 1 VCC |
+| 7 | ⚫ Black | ESP32 GND | Sensor 1 GND |
+| 8 | 🟡 Yellow | ESP32 GPIO5 | Sensor 1 TRIG |
+| 9 | 🟢 Green | Sensor 1 ECHO | Shifter HV1 |
+| 10 | 🔵 Blue | Shifter LV1 | ESP32 GPIO18 |
+| 11 | 🔴 Red | ESP32 5V | Sensor 2 VCC |
+| 12 | ⚫ Black | ESP32 GND | Sensor 2 GND |
+| 13 | 🟡 Yellow | ESP32 GPIO5 | Sensor 2 TRIG |
+| 14 | 🟠 Orange | Sensor 2 ECHO | Shifter HV2 |
+| 15 | 🟣 Purple | Shifter LV2 | ESP32 GPIO19 |
 
-## Why Level Shift Only ECHO?
+---
 
-- **TRIG (ESP32 → Sensor):** ESP32 outputs 3.3V, but HC-SR04 treats anything >2V as HIGH. Works fine without shifting.
-- **ECHO (Sensor → ESP32):** HC-SR04 outputs 5V, but ESP32 GPIOs are **not 5V tolerant**. Direct connection risks damage. The level shifter drops this to safe 3.3V.
+## Connection Diagram
+
+Shows the physical wiring with colors:
+
+```mermaid
+flowchart LR
+    subgraph ESP[ESP32]
+        E5[5V]
+        E3[3.3V]
+        EG[GND]
+        G5[GPIO5]
+        G18[GPIO18]
+        G19[GPIO19]
+    end
+
+    subgraph SHIFT[Shifter]
+        HV
+        LV
+        SG[GND]
+        HV1
+        LV1
+        HV2
+        LV2
+    end
+
+    subgraph S1[Sensor 1]
+        V1[VCC]
+        G1[GND]
+        T1[TRIG]
+        E1[ECHO]
+    end
+
+    subgraph S2[Sensor 2]
+        V2[VCC]
+        G2[GND]
+        T2[TRIG]
+        E2[ECHO]
+    end
+
+    E5 ---|"🔴"| HV
+    E3 ---|"⚪"| LV
+    EG ---|"⚫"| SG
+
+    E5 ---|"🔴"| V1
+    EG ---|"⚫"| G1
+    G5 ---|"🟡"| T1
+    E1 ---|"🟢"| HV1
+    LV1 ---|"🔵"| G18
+
+    E5 ---|"🔴"| V2
+    EG ---|"⚫"| G2
+    G5 ---|"🟡"| T2
+    E2 ---|"🟠"| HV2
+    LV2 ---|"🟣"| G19
+```
+
+---
+
+## Quick Reference
+
+| ESP32 | → | Destination | Notes |
+|-------|---|-------------|-------|
+| 5V | → | Shifter HV, Sensor VCCs | Power rail |
+| 3.3V | → | Shifter LV | Reference voltage |
+| GND | → | All GNDs | Common ground |
+| GPIO5 | → | Both TRIGs | Shared trigger |
+| GPIO18 | ← | Shifter LV1 | Echo 1 (shifted) |
+| GPIO19 | ← | Shifter LV2 | Echo 2 (shifted) |
+
+---
+
+## Why Level Shift ECHO Only?
+
+- **TRIG:** ESP32 outputs 3.3V → HC-SR04 reads >2V as HIGH ✓
+- **ECHO:** HC-SR04 outputs 5V → ESP32 GPIO max is 3.3V ✗ (needs shifter)
