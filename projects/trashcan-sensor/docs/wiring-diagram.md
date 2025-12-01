@@ -29,23 +29,23 @@ flowchart LR
 
 This is the actual build reference:
 
-| Wire | Color | From | To |
-|------|-------|------|-----|
-| 1 | 🔴 Red | Adapter + | ESP32 5V |
-| 2 | ⚫ Black | Adapter − | ESP32 GND |
-| 3 | 🔴 Red | ESP32 5V | Shifter HV |
-| 4 | ⚪ White | ESP32 3.3V | Shifter LV |
-| 5 | ⚫ Black | ESP32 GND | Shifter GND |
-| 6 | 🔴 Red | ESP32 5V | Sensor 1 VCC |
-| 7 | ⚫ Black | ESP32 GND | Sensor 1 GND |
-| 8 | 🟡 Yellow | ESP32 GPIO5 | Sensor 1 TRIG |
-| 9 | 🟢 Green | Sensor 1 ECHO | Shifter HV1 |
-| 10 | 🔵 Blue | Shifter LV1 | ESP32 GPIO18 |
-| 11 | 🔴 Red | ESP32 5V | Sensor 2 VCC |
-| 12 | ⚫ Black | ESP32 GND | Sensor 2 GND |
-| 13 | 🟡 Yellow | ESP32 GPIO5 | Sensor 2 TRIG |
-| 14 | 🟠 Orange | Sensor 2 ECHO | Shifter HV2 |
-| 15 | 🟣 Purple | Shifter LV2 | ESP32 GPIO19 |
+| Wire | Color | From | Pin | To | Pin |
+|------|-------|------|-----|-----|-----|
+| 1 | 🔴 Red | Adapter | + | ESP32 | 5V |
+| 2 | ⚫ Black | Adapter | − | ESP32 | GND |
+| 3 | 🔴 Red | ESP32 | 5V | Shifter | HV |
+| 4 | ⚪ White | ESP32 | 3V3 | Shifter | LV |
+| 5 | ⚫ Black | ESP32 | GND | Shifter | GND |
+| 6 | 🔴 Red | ESP32 | 5V | Sensor 1 | VCC |
+| 7 | ⚫ Black | ESP32 | GND | Sensor 1 | GND |
+| 8 | 🟡 Yellow | ESP32 | IO5 | Sensor 1 | TRIG |
+| 9 | 🟢 Green | Sensor 1 | ECHO | Shifter | HV1 |
+| 10 | 🔵 Blue | Shifter | LV1 | ESP32 | IO18 |
+| 11 | 🔴 Red | ESP32 | 5V | Sensor 2 | VCC |
+| 12 | ⚫ Black | ESP32 | GND | Sensor 2 | GND |
+| 13 | 🟡 Yellow | ESP32 | IO5 | Sensor 2 | TRIG |
+| 14 | 🟠 Orange | Sensor 2 | ECHO | Shifter | HV2 |
+| 15 | 🟣 Purple | Shifter | LV2 | ESP32 | IO19 |
 
 ---
 
