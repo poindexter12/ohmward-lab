@@ -26,9 +26,13 @@ esp32:
       minimum_chip_revision: "3.0"
 
 external_components:
+  # Pulled from GitHub so only THIS yaml needs to live on the ESPHome server.
   - source:
-      type: local
-      path: components
+      type: git
+      url: https://github.com/poindexter12/ohmward-lab
+      ref: main
+      path: projects/enphase-powerpack/firmware/esphome/components
+    components: [powerpack_ble]
 
 wifi:
   ssid: !secret wifi_ssid
