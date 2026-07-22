@@ -113,36 +113,42 @@ sensor:
           else if (ch == '}') { depth--; if (depth == 0) { endp = (int) i; break; } }
         }
         if (endp < 0 || start < 0) break;
-        std::string obj = buf.substr(start, endp - start + 1);
+        std::string o = buf.substr(start, endp - start + 1);
         buf.erase(0, endp + 1);
-        json::parse_json(obj, [](JsonObject root) -> bool {
-          auto pubf = [&](sensor::Sensor *s, const char *k) {
-            if (root.containsKey(k)) s->publish_state((float) root[k]);
-          };
-          pubf(id(pp_soc),            "soc");
-          pubf(id(pp_soh),            "soh");
-          pubf(id(pp_batt_power),     "uiBatP");
-          pubf(id(pp_storage_w),      "storage_W");
-          pubf(id(pp_load_ac),        "load_ac_W");
-          pubf(id(pp_grid_in),        "grid_import_W");
-          pubf(id(pp_solar_in),       "pv_dc_produce_W");
-          pubf(id(pp_inv_out),        "pcu_output_W");
-          pubf(id(pp_batt_v),         "bat_v");
-          pubf(id(pp_batt_i),         "bat_i");
-          pubf(id(pp_batt_temp),      "bat_avg_temp");
-          pubf(id(pp_batt_temp_max),  "bat_max_temp");
-          pubf(id(pp_ac_v),           "ac_out_v");
-          pubf(id(pp_ac_i),           "ac_out_i");
-          pubf(id(pp_ac_f),           "ac_out_f");
-          pubf(id(pp_backup_s),       "backupTime_s");
-          pubf(id(pp_ttfull_s),       "timeToCharge_s");
-          pubf(id(pp_cycles),         "battery_cycles");
-          if (root.containsKey("gateway"))
-            id(pp_cell_rssi).publish_state((float) (root["gateway"]["CRSSI"] | 0));
-          return true;
-        });
+        // Minimal number extractor: find "key": and parse the number after it. All the
+        // fields we publish are numbers, so this avoids the ArduinoJson/json dependency.
+        // The leading quote in the pattern prevents suffix collisions (e.g. "ac_i" won't
+        // match inside "pcu_ac_i"). Returns NAN (→ HA "unknown") if the key is absent.
+        auto num = [&](const char *key) -> float {
+          std::string pat = std::string("\"") + key + "\":";
+          size_t p = o.find(pat);
+          if (p == std::string::npos) return NAN;
+          p += pat.size();
+          while (p < o.size() && o[p] == ' ') p++;
+          return strtof(o.c_str() + p, nullptr);
+        };
+        id(pp_soc).publish_state(num("soc"));
+        id(pp_soh).publish_state(num("soh"));
+        id(pp_batt_power).publish_state(num("uiBatP"));
+        id(pp_storage_w).publish_state(num("storage_W"));
+        id(pp_load_ac).publish_state(num("load_ac_W"));
+        id(pp_grid_in).publish_state(num("grid_import_W"));
+        id(pp_solar_in).publish_state(num("pv_dc_produce_W"));
+        id(pp_inv_out).publish_state(num("pcu_output_W"));
+        id(pp_batt_v).publish_state(num("bat_v"));
+        id(pp_batt_i).publish_state(num("bat_i"));
+        id(pp_batt_temp).publish_state(num("bat_avg_temp"));
+        id(pp_batt_temp_max).publish_state(num("bat_max_temp"));
+        id(pp_ac_v).publish_state(num("ac_out_v"));
+        id(pp_ac_i).publish_state(num("ac_out_i"));
+        id(pp_ac_f).publish_state(num("ac_out_f"));
+        id(pp_backup_s).publish_state(num("backupTime_s"));
+        id(pp_ttfull_s).publish_state(num("timeToCharge_s"));
+        id(pp_cycles).publish_state(num("battery_cycles"));
+        id(pp_cell_rssi).publish_state(num("CRSSI"));   // gateway.CRSSI — unique key
       }
-      return (float) id(pp_json_frames).get_state() + 1.0f;
+      float c = id(pp_json_frames).get_state();
+      return isnan(c) ? 1.0f : c + 1.0f;
 
   # ---- Telemetry values (populated by the lambda above) ----
   - platform: template
