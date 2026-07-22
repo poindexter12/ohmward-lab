@@ -1,9 +1,0 @@
-# Deploy-specific values for THIS PowerPack unit. Included as `substitutions` by
-# enphase-powerpack.yaml. Not secret — a BLE MAC is only useful within Bluetooth range.
-# One file per unit if you ever run more than one.
-powerpack_ble_mac: "EC:C9:FF:95:76:52"   # from a BLE scan of PES_<serial>
-
-# Telemetry characteristic. json_char_uuid is a product constant; confirm json_service_uuid
-# from the first-boot GATT log (the service holding the ...-0010 characteristic).
-json_service_uuid: "6d1b33f8-0000-11eb-a8b3-0242ac130003"   # TODO confirm from logs
-json_char_uuid:    "6d1b33f8-0010-11eb-a8b3-0242ac130003"
