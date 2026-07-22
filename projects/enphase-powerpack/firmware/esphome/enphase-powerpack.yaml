@@ -32,7 +32,7 @@ esphome:
 esp32:
   board: esp32dev
   framework:
-    type: arduino
+    type: esp-idf
     advanced:
       sram1_as_iram: true              # +40 KB IRAM (safe on chip rev 3.0+)
       minimum_chip_revision: "3.0"     # shrinks binary; log confirmed rev >= 3.0.
@@ -61,7 +61,9 @@ ota:
 # ---- BLE (connect unbonded; telemetry is plaintext) ----
 esp32_ble_tracker:
   scan_parameters:
-    active: true
+    interval: 320ms
+    window: 30ms
+    active: false   # back off scanning so the ble_client connection keeps radio time
 
 ble_client:
   - mac_address: ${powerpack_ble_mac}
