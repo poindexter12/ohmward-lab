@@ -33,6 +33,10 @@ esp32:
   board: esp32dev
   framework:
     type: arduino
+    advanced:
+      sram1_as_iram: true              # +40 KB IRAM (safe on chip rev 3.0+)
+      minimum_chip_revision: "3.0"     # shrinks binary; log confirmed rev >= 3.0.
+                                       # Remove if you ever flash an older ESP32.
 
 wifi:
   ssid: !secret wifi_ssid
