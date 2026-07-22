@@ -44,7 +44,7 @@ wifi:
 captive_portal:
 
 logger:
-  level: INFO          # set DEBUG on first boot to watch the BLE handshake
+  level: DEBUG         # temporary: watch BLE notifications
 
 api:
   encryption:
