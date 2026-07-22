@@ -1,0 +1,286 @@
+# Enphase IQ PowerPack 1500 -> Home Assistant, via a standard ESP32 (WROOM) + ESPHome.
+# Follows ohmward-lab conventions: esp32dev/arduino, AP fallback, captive_portal, shared
+# secrets (wifi_ssid/wifi_password/fallback_password/api_encryption_key/ota_password),
+# plus debug sensors. Drop into your ESPHome server as a project device file.
+#
+# Extra secret this device needs (add to your server secrets.yaml):
+#   powerpack_ble_mac: "AA:BB:CC:DD:EE:FF"   # the PowerPack's BLE MAC (scan PES_<serial>)
+#
+# TWO things to confirm on first boot (set logger to DEBUG, watch `esphome logs`):
+#   1. powerpack_ble_mac matches the address advertised by PES_<serial>.
+#   2. json_service_uuid — the service holding the 6d1b33f8-0010 telemetry characteristic
+#      (best guess ...-0000-...). The GATT tree prints on connect.
+#
+# BLE note: a classic ESP32-WROOM is BT 4.2. ESPHome usually connects fine; if this unit
+# refuses the link, switch `framework: type: esp-idf` (often more reliable for BLE) or use a
+# BLE-5 board (C3/C6/S3) — the rest is identical.
+
+esphome:
+  name: enphase-powerpack
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "enphase-powerpack-fallback"
+    password: !secret fallback_password
+
+captive_portal:
+
+logger:
+  level: INFO          # set DEBUG on first boot to see the GATT tree + MAC
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# Confirm on first boot (see header)
+substitutions:
+  json_service_uuid: "6d1b33f8-0000-11eb-a8b3-0242ac130003"   # TODO confirm from logs
+  json_char_uuid:    "6d1b33f8-0010-11eb-a8b3-0242ac130003"   # telemetry JSON (notify)
+
+# ---- BLE (connect unbonded; telemetry is plaintext) ----
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+ble_client:
+  - mac_address: !secret powerpack_ble_mac
+    id: pp_client
+    on_connect:
+      then:
+        - logger.log: "PowerPack BLE connected"
+    on_disconnect:
+      then:
+        - lambda: 'id(pp_buf).clear();'
+
+globals:
+  - id: pp_buf
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+
+sensor:
+  # (A) Simple, guaranteed: SOC from the standard Battery Service (0x180F / 0x2A19).
+  - platform: ble_client
+    type: characteristic
+    ble_client_id: pp_client
+    id: pp_soc_battery_service
+    name: "SOC (battery service)"
+    service_uuid: "180F"
+    characteristic_uuid: "2A19"
+    notify: true
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+    lambda: 'return x[0];'
+
+  # (B) Full telemetry: subscribe to the JSON notify char, reassemble fragments, parse, fan out.
+  - platform: ble_client
+    type: characteristic
+    ble_client_id: pp_client
+    id: pp_json_frames
+    name: "Telemetry frames"
+    internal: true
+    service_uuid: ${json_service_uuid}
+    characteristic_uuid: ${json_char_uuid}
+    notify: true
+    lambda: |-
+      std::string &buf = id(pp_buf);
+      buf.append((const char *) x.data(), x.size());
+      if (buf.size() > 16384) buf.clear();
+      while (true) {
+        int depth = 0; int start = -1; int endp = -1;
+        for (size_t i = 0; i < buf.size(); i++) {
+          char ch = buf[i];
+          if (ch == '{') { if (depth == 0) start = (int) i; depth++; }
+          else if (ch == '}') { depth--; if (depth == 0) { endp = (int) i; break; } }
+        }
+        if (endp < 0 || start < 0) break;
+        std::string obj = buf.substr(start, endp - start + 1);
+        buf.erase(0, endp + 1);
+        json::parse_json(obj, [](JsonObject root) -> bool {
+          auto pubf = [&](sensor::Sensor *s, const char *k) {
+            if (root.containsKey(k)) s->publish_state((float) root[k]);
+          };
+          pubf(id(pp_soc),            "soc");
+          pubf(id(pp_soh),            "soh");
+          pubf(id(pp_batt_power),     "uiBatP");
+          pubf(id(pp_storage_w),      "storage_W");
+          pubf(id(pp_load_ac),        "load_ac_W");
+          pubf(id(pp_grid_in),        "grid_import_W");
+          pubf(id(pp_solar_in),       "pv_dc_produce_W");
+          pubf(id(pp_inv_out),        "pcu_output_W");
+          pubf(id(pp_batt_v),         "bat_v");
+          pubf(id(pp_batt_i),         "bat_i");
+          pubf(id(pp_batt_temp),      "bat_avg_temp");
+          pubf(id(pp_batt_temp_max),  "bat_max_temp");
+          pubf(id(pp_ac_v),           "ac_out_v");
+          pubf(id(pp_ac_i),           "ac_out_i");
+          pubf(id(pp_ac_f),           "ac_out_f");
+          pubf(id(pp_backup_s),       "backupTime_s");
+          pubf(id(pp_ttfull_s),       "timeToCharge_s");
+          pubf(id(pp_cycles),         "battery_cycles");
+          if (root.containsKey("gateway"))
+            id(pp_cell_rssi).publish_state((float) (root["gateway"]["CRSSI"] | 0));
+          return true;
+        });
+      }
+      return (float) id(pp_json_frames).get_state() + 1.0f;
+
+  # ---- Telemetry values (populated by the lambda above) ----
+  - platform: template
+    id: pp_soc
+    name: "Battery"
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_soh
+    name: "State of Health"
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_batt_power
+    name: "Battery Power"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_storage_w
+    name: "Storage Power"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_load_ac
+    name: "AC Load"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_grid_in
+    name: "Grid Input"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_solar_in
+    name: "Solar Input"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_inv_out
+    name: "Inverter Output"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_batt_v
+    name: "Battery Voltage"
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+  - platform: template
+    id: pp_batt_i
+    name: "Battery Current"
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+  - platform: template
+    id: pp_batt_temp
+    name: "Battery Temp"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+  - platform: template
+    id: pp_batt_temp_max
+    name: "Battery Temp Max"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+  - platform: template
+    id: pp_ac_v
+    name: "AC Output Voltage"
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+  - platform: template
+    id: pp_ac_i
+    name: "AC Output Current"
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+  - platform: template
+    id: pp_ac_f
+    name: "AC Output Frequency"
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 1
+  - platform: template
+    id: pp_backup_s
+    name: "Backup Time"
+    unit_of_measurement: "s"
+    device_class: duration
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_ttfull_s
+    name: "Time To Full"
+    unit_of_measurement: "s"
+    device_class: duration
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_cycles
+    name: "Battery Cycles"
+    state_class: total_increasing
+    accuracy_decimals: 0
+  - platform: template
+    id: pp_cell_rssi
+    name: "Cellular Signal"
+    unit_of_measurement: "dBm"
+    device_class: signal_strength
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # ---- Debug (ohmward-lab convention) ----
+  - platform: wifi_signal
+    name: "PowerPack WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: "PowerPack Uptime"
+
+text_sensor:
+  - platform: version
+    name: "PowerPack ESPHome Version"
+
+binary_sensor:
+  - platform: status
+    name: "PowerPack Status"

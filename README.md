@@ -16,6 +16,7 @@ enclosure files.
 ## Current Projects
 
 - `trashcan-sensor` – ESP32 + dual HC-SR04 sensor to estimate trashcan fullness
+- `enphase-powerpack` – ESP32 BLE bridge exposing Enphase IQ PowerPack 1500 telemetry to Home Assistant
 
 ## Getting Started
 
