@@ -3,8 +3,9 @@
 # secrets (wifi_ssid/wifi_password/fallback_password/api_encryption_key/ota_password),
 # plus debug sensors. Drop into your ESPHome server as a project device file.
 #
-# Extra secret this device needs (add to your server secrets.yaml):
-#   powerpack_ble_mac: "AA:BB:CC:DD:EE:FF"   # the PowerPack's BLE MAC (scan PES_<serial>)
+# Deploy-specific values (the unit's BLE MAC + telemetry UUIDs) live in
+# `enphase-powerpack.deploy.yaml`, included below as substitutions. Not secret — edit that
+# file per unit. No device-specific secret is needed.
 #
 # TWO things to confirm on first boot (set logger to DEBUG, watch `esphome logs`):
 #   1. powerpack_ble_mac matches the address advertised by PES_<serial>.
@@ -43,10 +44,8 @@ ota:
   - platform: esphome
     password: !secret ota_password
 
-# Confirm on first boot (see header)
-substitutions:
-  json_service_uuid: "6d1b33f8-0000-11eb-a8b3-0242ac130003"   # TODO confirm from logs
-  json_char_uuid:    "6d1b33f8-0010-11eb-a8b3-0242ac130003"   # telemetry JSON (notify)
+# Deploy-specific values for this unit (BLE MAC + telemetry UUIDs). Not secret.
+substitutions: !include enphase-powerpack.deploy.yaml
 
 # ---- BLE (connect unbonded; telemetry is plaintext) ----
 esp32_ble_tracker:
@@ -54,7 +53,7 @@ esp32_ble_tracker:
     active: true
 
 ble_client:
-  - mac_address: !secret powerpack_ble_mac
+  - mac_address: ${powerpack_ble_mac}
     id: pp_client
     on_connect:
       then:
