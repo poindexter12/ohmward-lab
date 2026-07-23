@@ -3,6 +3,7 @@
 #ifdef USE_ESP32
 
 #include "esphome/core/log.h"
+#include <esp_gap_ble_api.h>
 #include <cmath>
 #include <cstdlib>
 
@@ -11,7 +12,21 @@ namespace powerpack_ble {
 
 static const char *const TAG = "powerpack_ble";
 
-void PowerPackBLE::setup() {}
+void PowerPackBLE::setup() {
+  // The telemetry char's data path demands an authenticated link (reads bounce with
+  // ESP_GATT_INSUF_AUTHENTICATION 0x05, notifies never arrive). Desktop stacks auto-pair
+  // when they see that; ESP-IDF must be configured for Just-Works bonding explicitly.
+  uint8_t auth_req = ESP_LE_AUTH_BOND;
+  uint8_t iocap = ESP_IO_CAP_NONE;
+  uint8_t key_size = 16;
+  uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+  uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+  esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(auth_req));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(iocap));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(key_size));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(init_key));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(rsp_key));
+}
 
 void PowerPackBLE::dump_config() {
   ESP_LOGCONFIG(TAG, "Enphase PowerPack BLE:");
@@ -45,6 +60,9 @@ void PowerPackBLE::subscribe_() {
   this->char_handle_ = characteristic->handle;
   ESP_LOGI(TAG, "found telemetry characteristic, handle 0x%04x — registering for notify",
            this->char_handle_);
+  // Kick off pairing/encryption in parallel; data only flows on an authenticated link.
+  auto enc = esp_ble_set_encryption(this->parent()->get_remote_bda(), ESP_BLE_SEC_ENCRYPT_NO_MITM);
+  ESP_LOGI(TAG, "requesting link encryption (status=%d)", enc);
   auto status = esp_ble_gattc_register_for_notify(this->parent()->get_gattc_if(),
                                                   this->parent()->get_remote_bda(),
                                                   this->char_handle_);
@@ -88,8 +106,9 @@ void PowerPackBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
                param->write.status);
       if (param->write.status == ESP_GATT_OK && this->char_handle_ != 0) {
         // Some firmwares only start the notify stream after a read of the char.
+        // NO_MITM auth req lets the stack escalate to encryption instead of failing 0x05.
         auto status = esp_ble_gattc_read_char(gattc_if, this->parent()->get_conn_id(),
-                                              this->char_handle_, ESP_GATT_AUTH_REQ_NONE);
+                                              this->char_handle_, ESP_GATT_AUTH_REQ_NO_MITM);
         ESP_LOGD(TAG, "post-subscribe kick read queued, status=%d", status);
       }
       break;
@@ -119,6 +138,32 @@ void PowerPackBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
     case ESP_GATTC_CLOSE_EVT: {
       this->buf_.clear();
       this->char_handle_ = 0;
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+void PowerPackBLE::gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
+  switch (event) {
+    case ESP_GAP_BLE_SEC_REQ_EVT: {
+      // Peripheral asked for security — accept so Just-Works pairing can proceed.
+      ESP_LOGI(TAG, "peer security request — accepting");
+      esp_ble_gap_security_rsp(param->ble_security.ble_req.bd_addr, true);
+      break;
+    }
+    case ESP_GAP_BLE_AUTH_CMPL_EVT: {
+      auto &c = param->ble_security.auth_cmpl;
+      if (!c.success) {
+        ESP_LOGW(TAG, "pairing FAILED, reason=0x%02x", c.fail_reason);
+        break;
+      }
+      ESP_LOGI(TAG, "pairing complete (bonded, auth_mode=%d) — kicking read", c.auth_mode);
+      if (this->char_handle_ != 0) {
+        esp_ble_gattc_read_char(this->parent()->get_gattc_if(), this->parent()->get_conn_id(),
+                                this->char_handle_, ESP_GATT_AUTH_REQ_NO_MITM);
+      }
       break;
     }
     default:

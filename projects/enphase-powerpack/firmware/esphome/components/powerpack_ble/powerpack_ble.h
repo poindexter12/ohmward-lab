@@ -26,6 +26,7 @@ class PowerPackBLE : public Component, public ble_client::BLEClientNode {
 
   void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                            esp_ble_gattc_cb_param_t *param) override;
+  void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) override;
 
   void set_service_uuid(const std::string &s) { this->service_uuid_str_ = s; }
   void set_characteristic_uuid(const std::string &s) { this->char_uuid_str_ = s; }
