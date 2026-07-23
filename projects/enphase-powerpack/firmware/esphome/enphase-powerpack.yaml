@@ -46,7 +46,7 @@ wifi:
 captive_portal:
 
 logger:
-  level: DEBUG         # temporary: watch BLE notifications
+  level: INFO          # DEBUG shows per-frame BLE + parser detail when needed
 
 api:
   encryption:
