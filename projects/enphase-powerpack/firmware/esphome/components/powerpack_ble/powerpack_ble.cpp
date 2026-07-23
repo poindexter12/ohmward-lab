@@ -159,10 +159,21 @@ void PowerPackBLE::gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_c
         ESP_LOGW(TAG, "pairing FAILED, reason=0x%02x", c.fail_reason);
         break;
       }
-      ESP_LOGI(TAG, "pairing complete (bonded, auth_mode=%d) — kicking read", c.auth_mode);
+      ESP_LOGI(TAG, "pairing complete (bonded, auth_mode=%d) — re-writing CCCD on encrypted link",
+               c.auth_mode);
+      // CCCD state is per-bond: the fresh bond reset it to 0, wiping the pre-encryption
+      // subscribe. Re-write it now; the WRITE_DESCR handler then kicks the read.
       if (this->char_handle_ != 0) {
-        esp_ble_gattc_read_char(this->parent()->get_gattc_if(), this->parent()->get_conn_id(),
-                                this->char_handle_, ESP_GATT_AUTH_REQ_NO_MITM);
+        auto *descr = this->parent()->get_config_descriptor(this->char_handle_);
+        if (descr == nullptr) {
+          ESP_LOGW(TAG, "no CCCD for handle 0x%04x on re-subscribe", this->char_handle_);
+          break;
+        }
+        uint16_t enable = 0x0001;
+        esp_ble_gattc_write_char_descr(this->parent()->get_gattc_if(),
+                                       this->parent()->get_conn_id(), descr->handle,
+                                       sizeof(enable), (uint8_t *) &enable,
+                                       ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NO_MITM);
       }
       break;
     }
