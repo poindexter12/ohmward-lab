@@ -110,7 +110,7 @@ void PowerPackBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
       break;
     }
     case ESP_GATTC_NOTIFY_EVT: {
-      ESP_LOGD(TAG, "notify handle=0x%04x len=%d (want 0x%04x)", param->notify.handle,
+      ESP_LOGVV(TAG, "notify handle=0x%04x len=%d (want 0x%04x)", param->notify.handle,
                param->notify.value_len, this->char_handle_);
       if (param->notify.handle != this->char_handle_)
         break;
@@ -195,7 +195,7 @@ void PowerPackBLE::process_buffer_() {
 }
 
 void PowerPackBLE::publish_frame_(const std::string &json) {
-  ESP_LOGD(TAG, "telemetry frame (%u bytes): %.60s...", (unsigned) json.size(), json.c_str());
+  ESP_LOGV(TAG, "telemetry frame (%u bytes): %.60s...", (unsigned) json.size(), json.c_str());
   for (auto &field : this->fields_) {
     float v = extract_num(json, field.first);
     if (!std::isnan(v))
