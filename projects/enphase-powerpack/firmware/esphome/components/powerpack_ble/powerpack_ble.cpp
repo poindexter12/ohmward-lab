@@ -79,30 +79,16 @@ void PowerPackBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
       break;
     }
     case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
+      // BLEClientBase auto-writes the CCCD here; the write that actually sticks is the
+      // post-pairing one in gap_event_handler (per-bond CCCD state resets on a fresh bond).
       ESP_LOGD(TAG, "REG_FOR_NOTIFY status=%d handle=0x%04x", param->reg_for_notify.status,
                param->reg_for_notify.handle);
-      // Enable notifications by writing 0x0001 to the char's CCCD (0x2902).
-      auto *descr = this->parent()->get_config_descriptor(this->char_handle_);
-      if (descr == nullptr) {
-        ESP_LOGW(TAG, "no CCCD for handle 0x%04x", this->char_handle_);
-        break;
-      }
-      ESP_LOGI(TAG, "CCCD descriptor: handle=0x%04x uuid=%s", descr->handle,
-               descr->uuid.to_string().c_str());
-      uint16_t enable = 0x0001;
-      auto status = esp_ble_gattc_write_char_descr(
-          this->parent()->get_gattc_if(), this->parent()->get_conn_id(), descr->handle,
-          sizeof(enable), (uint8_t *) &enable, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
-      if (status != ESP_OK)
-        ESP_LOGW(TAG, "CCCD write failed to queue, status=%d", status);
-      else
-        ESP_LOGI(TAG, "CCCD write queued — awaiting WRITE_DESCR_EVT for device status");
       break;
     }
     case ESP_GATTC_WRITE_DESCR_EVT: {
-      // The device's ACTUAL response to the CCCD write. queue-OK above means nothing
+      // The device's ACTUAL response to a CCCD write — a local queue-OK means nothing
       // if this reports e.g. insufficient authentication (0x05) or encryption (0x0f).
-      ESP_LOGI(TAG, "WRITE_DESCR handle=0x%04x status=0x%02x", param->write.handle,
+      ESP_LOGD(TAG, "WRITE_DESCR handle=0x%04x status=0x%02x", param->write.handle,
                param->write.status);
       if (param->write.status == ESP_GATT_OK && this->char_handle_ != 0) {
         // Some firmwares only start the notify stream after a read of the char.
@@ -114,7 +100,7 @@ void PowerPackBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
       break;
     }
     case ESP_GATTC_READ_CHAR_EVT: {
-      ESP_LOGI(TAG, "READ_CHAR handle=0x%04x status=0x%02x len=%d", param->read.handle,
+      ESP_LOGD(TAG, "READ_CHAR handle=0x%04x status=0x%02x len=%d", param->read.handle,
                param->read.status, param->read.value_len);
       if (param->read.status == ESP_GATT_OK && param->read.handle == this->char_handle_ &&
           param->read.value_len > 0) {
