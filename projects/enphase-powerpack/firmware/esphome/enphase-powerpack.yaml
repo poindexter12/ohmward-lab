@@ -69,43 +69,44 @@ powerpack_ble:
   ble_client_id: pp_client
   service_uuid: ${json_service_uuid}
   characteristic_uuid: ${json_char_uuid}
+  # Frames arrive 1-2x/sec; throttle everything except battery/charge flow & state.
   battery: {name: "Battery"}
-  state_of_health: {name: "State of Health"}
+  state_of_health: {name: "State of Health", filters: [throttle: 30s]}
   battery_power: {name: "Battery Power"}
   storage_power: {name: "Storage Power"}
-  ac_load: {name: "AC Load"}
+  ac_load: {name: "AC Load", filters: [throttle: 30s]}
   grid_input: {name: "Grid Input"}
   solar_input: {name: "Solar Input"}
-  inverter_output: {name: "Inverter Output"}
-  battery_voltage: {name: "Battery Voltage"}
-  battery_current: {name: "Battery Current"}
-  battery_temp: {name: "Battery Temp"}
-  battery_temp_max: {name: "Battery Temp Max"}
-  ac_output_voltage: {name: "AC Output Voltage"}
-  ac_output_current: {name: "AC Output Current"}
-  ac_output_frequency: {name: "AC Output Frequency"}
+  inverter_output: {name: "Inverter Output", filters: [throttle: 30s]}
+  battery_voltage: {name: "Battery Voltage", filters: [throttle: 30s]}
+  battery_current: {name: "Battery Current", filters: [throttle: 30s]}
+  battery_temp: {name: "Battery Temp", filters: [throttle: 30s]}
+  battery_temp_max: {name: "Battery Temp Max", filters: [throttle: 30s]}
+  ac_output_voltage: {name: "AC Output Voltage", filters: [throttle: 30s]}
+  ac_output_current: {name: "AC Output Current", filters: [throttle: 30s]}
+  ac_output_frequency: {name: "AC Output Frequency", filters: [throttle: 30s]}
   backup_time: {name: "Backup Time"}
   time_to_full: {name: "Time To Full"}
-  battery_cycles: {name: "Battery Cycles"}
-  cellular_signal: {name: "Cellular Signal"}
-  battery_temp_min: {name: "Battery Temp Min"}
-  cell_voltage_avg: {name: "Cell Voltage Avg"}
-  cell_voltage_min: {name: "Cell Voltage Min"}
-  cell_voltage_max: {name: "Cell Voltage Max"}
-  usb_load: {name: "USB Load"}
-  aux_load: {name: "Aux Load"}
-  usb_voltage: {name: "USB Voltage"}
-  usb_current: {name: "USB Current"}
-  external_ac_input: {name: "External AC Input"}
-  dc_12v_input: {name: "DC 12V Input"}
-  grid_voltage: {name: "Grid Voltage"}
-  grid_current: {name: "Grid Current"}
-  grid_frequency: {name: "Grid Frequency"}
-  solar_voltage: {name: "Solar Voltage"}
-  solar_current: {name: "Solar Current"}
-  fan1_duty: {name: "Fan 1 Duty"}
-  fan2_duty: {name: "Fan 2 Duty"}
-  fan3_duty: {name: "Fan 3 Duty"}
+  battery_cycles: {name: "Battery Cycles", filters: [throttle: 30s]}
+  cellular_signal: {name: "Cellular Signal", filters: [throttle: 30s]}
+  battery_temp_min: {name: "Battery Temp Min", filters: [throttle: 30s]}
+  cell_voltage_avg: {name: "Cell Voltage Avg", filters: [throttle: 30s]}
+  cell_voltage_min: {name: "Cell Voltage Min", filters: [throttle: 30s]}
+  cell_voltage_max: {name: "Cell Voltage Max", filters: [throttle: 30s]}
+  usb_load: {name: "USB Load", filters: [throttle: 30s]}
+  aux_load: {name: "Aux Load", filters: [throttle: 30s]}
+  usb_voltage: {name: "USB Voltage", filters: [throttle: 30s]}
+  usb_current: {name: "USB Current", filters: [throttle: 30s]}
+  external_ac_input: {name: "External AC Input", filters: [throttle: 30s]}
+  dc_12v_input: {name: "DC 12V Input", filters: [throttle: 30s]}
+  grid_voltage: {name: "Grid Voltage", filters: [throttle: 30s]}
+  grid_current: {name: "Grid Current", filters: [throttle: 30s]}
+  grid_frequency: {name: "Grid Frequency", filters: [throttle: 30s]}
+  solar_voltage: {name: "Solar Voltage", filters: [throttle: 30s]}
+  solar_current: {name: "Solar Current", filters: [throttle: 30s]}
+  fan1_duty: {name: "Fan 1 Duty", filters: [throttle: 30s]}
+  fan2_duty: {name: "Fan 2 Duty", filters: [throttle: 30s]}
+  fan3_duty: {name: "Fan 3 Duty", filters: [throttle: 30s]}
 
 sensor:
   - platform: wifi_signal
