@@ -88,6 +88,24 @@ powerpack_ble:
   time_to_full: {name: "Time To Full"}
   battery_cycles: {name: "Battery Cycles"}
   cellular_signal: {name: "Cellular Signal"}
+  battery_temp_min: {name: "Battery Temp Min"}
+  cell_voltage_avg: {name: "Cell Voltage Avg"}
+  cell_voltage_min: {name: "Cell Voltage Min"}
+  cell_voltage_max: {name: "Cell Voltage Max"}
+  usb_load: {name: "USB Load"}
+  aux_load: {name: "Aux Load"}
+  usb_voltage: {name: "USB Voltage"}
+  usb_current: {name: "USB Current"}
+  external_ac_input: {name: "External AC Input"}
+  dc_12v_input: {name: "DC 12V Input"}
+  grid_voltage: {name: "Grid Voltage"}
+  grid_current: {name: "Grid Current"}
+  grid_frequency: {name: "Grid Frequency"}
+  solar_voltage: {name: "Solar Voltage"}
+  solar_current: {name: "Solar Current"}
+  fan1_duty: {name: "Fan 1 Duty"}
+  fan2_duty: {name: "Fan 2 Duty"}
+  fan3_duty: {name: "Fan 3 Duty"}
 
 sensor:
   - platform: wifi_signal
