@@ -66,6 +66,26 @@ SENSORS = {
     "time_to_full": ("timeToCharge_s", _s(UNIT_SECOND, DEVICE_CLASS_DURATION, STATE_CLASS_MEASUREMENT, 0)),
     "battery_cycles": ("battery_cycles", _s(None, None, STATE_CLASS_TOTAL_INCREASING, 0)),
     "cellular_signal": ("CRSSI", _s(UNIT_DECIBEL_MILLIWATT, DEVICE_CLASS_SIGNAL_STRENGTH, STATE_CLASS_MEASUREMENT, 0)),
+    # Full scalar coverage (PCU per-micro arrays and mode enums excluded — the flat
+    # extract_num parser only handles scalar numbers).
+    "battery_temp_min": ("bat_min_temp", _s(UNIT_CELSIUS, DEVICE_CLASS_TEMPERATURE, STATE_CLASS_MEASUREMENT, 1)),
+    "cell_voltage_avg": ("bat_avg_v", _s(UNIT_VOLT, DEVICE_CLASS_VOLTAGE, STATE_CLASS_MEASUREMENT, 3)),
+    "cell_voltage_min": ("bat_min_v", _s(UNIT_VOLT, DEVICE_CLASS_VOLTAGE, STATE_CLASS_MEASUREMENT, 3)),
+    "cell_voltage_max": ("bat_max_v", _s(UNIT_VOLT, DEVICE_CLASS_VOLTAGE, STATE_CLASS_MEASUREMENT, 3)),
+    "usb_load": ("load_dc_usb_W", _s(UNIT_WATT, DEVICE_CLASS_POWER, STATE_CLASS_MEASUREMENT, 0)),
+    "aux_load": ("load_dc_aux_W", _s(UNIT_WATT, DEVICE_CLASS_POWER, STATE_CLASS_MEASUREMENT, 0)),
+    "usb_voltage": ("usb_v", _s(UNIT_VOLT, DEVICE_CLASS_VOLTAGE, STATE_CLASS_MEASUREMENT, 2)),
+    "usb_current": ("usb_i", _s(UNIT_AMPERE, DEVICE_CLASS_CURRENT, STATE_CLASS_MEASUREMENT, 3)),
+    "external_ac_input": ("ext_ac_produce_W", _s(UNIT_WATT, DEVICE_CLASS_POWER, STATE_CLASS_MEASUREMENT, 0)),
+    "dc_12v_input": ("dc_12v_import_W", _s(UNIT_WATT, DEVICE_CLASS_POWER, STATE_CLASS_MEASUREMENT, 0)),
+    "grid_voltage": ("grid_v", _s(UNIT_VOLT, DEVICE_CLASS_VOLTAGE, STATE_CLASS_MEASUREMENT, 1)),
+    "grid_current": ("grid_i", _s(UNIT_AMPERE, DEVICE_CLASS_CURRENT, STATE_CLASS_MEASUREMENT, 2)),
+    "grid_frequency": ("grid_f", _s(UNIT_HERTZ, DEVICE_CLASS_FREQUENCY, STATE_CLASS_MEASUREMENT, 1)),
+    "solar_voltage": ("pv_v", _s(UNIT_VOLT, DEVICE_CLASS_VOLTAGE, STATE_CLASS_MEASUREMENT, 1)),
+    "solar_current": ("pv_i", _s(UNIT_AMPERE, DEVICE_CLASS_CURRENT, STATE_CLASS_MEASUREMENT, 2)),
+    "fan1_duty": ("fan1_duty_cycle", _s(UNIT_PERCENT, None, STATE_CLASS_MEASUREMENT, 0)),
+    "fan2_duty": ("fan2_duty_cycle", _s(UNIT_PERCENT, None, STATE_CLASS_MEASUREMENT, 0)),
+    "fan3_duty": ("fan3_duty_cycle", _s(UNIT_PERCENT, None, STATE_CLASS_MEASUREMENT, 0)),
 }
 
 CONFIG_SCHEMA = (
